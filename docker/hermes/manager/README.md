@@ -2,7 +2,7 @@
 
 The **Hermes Manager** is a small Python/FastAPI service embedded in the project's custom Hermes Docker image. It coordinates **WhatsApp self-chat pairing and safe reconnection**; it does not implement the Hermes agent, scheduler or AI search logic.
 
-For the full application, start with the [root README](../../../../README.md). For the browser-facing integration, see the [Next.js README](../../../../app/README.md).
+For the full application, start with the [root README](../../../README.md). For the browser-facing integration, see the [Next.js README](../../../app/README.md).
 
 ## Why This Service Exists
 
@@ -96,7 +96,7 @@ The FastAPI application uses the Python dependencies installed by the pinned Her
 
 ## Build and Run (Windows / PowerShell)
 
-From the repository root, configure the Hermes session token as described in the [main setup instructions](../../../../README.md#run-locally-windows--powershell). Then run:
+From the repository root, configure the Hermes session token as described in the [main setup instructions](../../../README.md#run-locally-windows--powershell). Then run:
 
 ~~~powershell
 cd C:\projects\job-search-agent-app
