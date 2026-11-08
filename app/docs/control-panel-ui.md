@@ -1,6 +1,6 @@
 # Control Panel — Frontend Architecture and Request Flow
 
-This guide describes the **implemented** Next.js dashboard of [Job Search Agent](../../../README.md). For installation and environment configuration, see [app/README.md](../README.md). For the WhatsApp backend lifecycle, see the [FastAPI Manager README](../../../docker/hermes/manager/README.md).
+This guide describes the **implemented** Next.js dashboard of [Job Search Agent](../../README.md). For installation and environment configuration, see [app/README.md](../README.md). For the WhatsApp backend lifecycle, see the [FastAPI Manager README](../../docker/hermes/manager/README.md).
 
 ## Why This Structure?
 
@@ -106,4 +106,4 @@ npm run build
 
 Also test a live dashboard session against a running Docker Compose stack. A passing type check does not establish successful WhatsApp pairing or scheduled execution.
 
-For reconnect safety test commands, refer to the [FastAPI Manager README](../../../docker/hermes/manager/README.md#tests).
+For reconnect safety test commands, refer to the [FastAPI Manager README](../../docker/hermes/manager/README.md#tests).
