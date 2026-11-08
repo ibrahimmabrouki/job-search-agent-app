@@ -1,4 +1,11 @@
 :root {
+  --type-small: 11px;
+  --type-caption: 12px;
+  --type-label: 13px;
+  --type-body: 14px;
+  --type-card: 16px;
+  --type-section: 20px;
+  --type-page: clamp(24px, 2.2vw, 30px);
   color-scheme: dark;
   --bg: #040d0e;
   --panel: #091719;
@@ -19,19 +26,12 @@ html {
   scroll-behavior: smooth;
 }
 body {
+  line-height: 1.5;
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family:
-    "DM Sans",
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-  font-size: 13px;
+  font-family: var(--font-inter), Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: var(--type-body);
   -webkit-font-smoothing: antialiased;
 }
 button,
@@ -135,10 +135,10 @@ a {
   text-align: center;
 }
 .neon-sidebar-brand strong {
-  font-size: 19px;
+  font-size: 20px;
   letter-spacing: -0.045em;
   margin-top: 8px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .neon-sidebar-brand > span:last-child {
   font-size: 14px;
@@ -170,6 +170,7 @@ a {
   padding: 24px 10px;
 }
 .neon-nav-item {
+  font-size: var(--type-body);
   appearance: none;
   width: 100%;
   height: 48px;
@@ -252,7 +253,7 @@ a {
   font-size: 13px;
 }
 .neon-mini-system span {
-  font-size: 11px;
+  font-size: var(--type-caption);
   color: #9eb9aa;
   white-space: nowrap;
   overflow: hidden;
@@ -316,18 +317,18 @@ a {
   min-width: 0;
 }
 .neon-page-title h1 {
-  font-size: clamp(22px, 2.45vw, 34px);
+  font-size: var(--type-page);
   line-height: 1.13;
   letter-spacing: -0.057em;
   margin: 0 0 5px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .neon-page-title h1 em {
   color: var(--green);
   font-style: normal;
 }
 .neon-page-title p {
-  font-size: clamp(11px, 1vw, 15px);
+  font-size: var(--type-body);
   margin: 0;
   color: #b4c6bf;
   white-space: normal;
@@ -375,7 +376,7 @@ a {
   place-items: center;
   color: white;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   border-radius: 50%;
   background: linear-gradient(145deg, #2bb768, #07492c);
   border: 1px solid #48ea8b50;
@@ -463,8 +464,8 @@ a {
   gap: 5px;
 }
 .neon-status-card strong {
-  font-weight: 750;
-  font-size: 12px;
+  font-weight: 600;
+  font-size: var(--type-label);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -474,7 +475,7 @@ a {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: var(--type-caption);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -571,15 +572,15 @@ a {
 }
 .neon-section-heading h2,
 .neon-quick-label h2 {
-  font-size: 19px;
+  font-size: var(--type-section);
   letter-spacing: -0.04em;
-  font-weight: 800;
+  font-weight: 700;
   margin: 0 0 2px;
 }
 .neon-section-heading p,
 .neon-quick-label p {
   color: #a1b5ae;
-  font-size: 12px;
+  font-size: var(--type-label);
   margin: 0;
 }
 .neon-section-tools {
@@ -598,8 +599,8 @@ a {
   gap: 7px;
   padding: 0 13px;
   color: #eaf5ee;
-  font-size: 12px;
-  font-weight: 750;
+  font-size: var(--type-label);
+  font-weight: 600;
   white-space: nowrap;
   background: rgba(18, 45, 39, 0.75);
   transition:
@@ -705,14 +706,14 @@ a {
 }
 .neon-integration-top h3 {
   margin: 0 0 1px;
-  font-size: 15px;
+  font-size: var(--type-card);
   letter-spacing: -0.035em;
-  font-weight: 800;
+  font-weight: 700;
 }
 .neon-integration-top p {
   margin: 0;
   color: #b7c7be;
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 1.35;
 }
 .neon-pill {
@@ -721,8 +722,8 @@ a {
   align-self: flex-start;
   gap: 6px;
   padding: 5px 10px;
-  font-size: 11px;
-  font-weight: 760;
+  font-size: var(--type-caption);
+  font-weight: 600;
   border: 1px solid rgba(76, 142, 100, 0.28);
   border-radius: 22px;
   white-space: nowrap;
@@ -755,13 +756,13 @@ a {
   justify-content: space-between;
   gap: 4px;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 .neon-integration-meta span {
   color: #acbeb4;
 }
 .neon-integration-meta strong {
-  font-size: 11px;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: #ecf7ee;
   max-width: 68%;
@@ -778,7 +779,7 @@ a {
   min-width: 0;
   height: 33px;
   padding: 0 6px;
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 .neon-files {
   display: grid;
@@ -830,15 +831,15 @@ a {
   min-width: 0;
 }
 .neon-file-details strong {
-  font-size: 11px;
-  font-weight: 750;
+  font-size: var(--type-label);
+  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .neon-file-details span {
   color: #aec1b6;
-  font-size: 10px;
+  font-size: var(--type-caption);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -855,11 +856,12 @@ a {
   background: rgba(16, 59, 36, 0.73);
   padding: 0 8px;
   color: #e5f9ea;
-  font-size: 10px;
+  font-size: var(--type-small);
   font-weight: 700;
   white-space: nowrap;
 }
 .neon-file-action {
+  font-size: 11px;
   transition:
     background 0.2s,
     transform 0.2s;
@@ -885,7 +887,7 @@ a {
   border-radius: 9px;
   height: 32px;
   padding: 0 10px;
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 .neon-table-scroll {
   width: 100%;
@@ -902,9 +904,9 @@ a {
 }
 .neon-jobs-table th {
   padding: 10px 9px;
-  font-size: 10px;
+  font-size: var(--type-caption);
   color: #d3e3d9;
-  font-weight: 750;
+  font-weight: 600;
   background: linear-gradient(
     120deg,
     rgba(24, 54, 52, 0.88),
@@ -915,7 +917,7 @@ a {
   border-top: 1px solid rgba(130, 181, 154, 0.16);
   padding: 10px 8px;
   color: #dce9df;
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 .neon-jobs-table tr {
   transition: background 0.18s;
@@ -929,7 +931,7 @@ a {
 }
 .neon-jobs-table td:nth-child(4),
 .neon-jobs-table td:nth-child(5) {
-  font-size: 10px;
+  font-size: var(--type-small);
   color: #c0d1c7;
 }
 .neon-job-selector {
@@ -954,14 +956,14 @@ a {
   min-width: 0;
 }
 .neon-job-selector strong {
-  font-size: 11px;
+  font-size: var(--type-caption);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 210px;
 }
 .neon-job-selector small {
-  font-size: 10px;
+  font-size: var(--type-small);
   color: #94afa0;
   white-space: nowrap;
   overflow: hidden;
@@ -973,13 +975,13 @@ a {
   align-items: center;
   gap: 5px;
   color: #e4f4e8;
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 .neon-delivery svg {
   color: #4df591;
 }
 .neon-jobs-table td .neon-pill {
-  font-size: 10px;
+  font-size: var(--type-small);
   padding: 4px 7px;
 }
 .neon-job-actions {
@@ -999,8 +1001,8 @@ a {
   background: #0c3e25;
   border-radius: 7px;
   border: 1px solid rgba(58, 224, 110, 0.42);
-  font-size: 10px;
-  font-weight: 740;
+  font-size: var(--type-small);
+  font-weight: 600;
   transition:
     transform 0.2s,
     background 0.2s;
@@ -1053,20 +1055,20 @@ a {
   gap: 3px;
 }
 .neon-activity-row strong {
-  font-size: 11px;
+  font-size: var(--type-caption);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .neon-activity-row div span {
   color: #9fbaab;
-  font-size: 10px;
+  font-size: var(--type-small);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .neon-activity-row time {
-  font-size: 10px;
+  font-size: var(--type-small);
   color: #d1e0d4;
   white-space: nowrap;
 }
@@ -1084,7 +1086,7 @@ a {
 }
 .neon-activity-disclaimer {
   color: #718e81;
-  font-size: 10px;
+  font-size: var(--type-small);
   padding: 7px 0 0;
   margin: 4px 0 0;
   border-top: 1px solid rgba(124, 190, 150, 0.11);
@@ -1169,11 +1171,11 @@ a {
   min-width: 0;
 }
 .neon-quick-btn strong {
-  font-size: 13px;
+  font-size: var(--type-body);
   white-space: nowrap;
 }
 .neon-quick-btn small {
-  font-size: 10px;
+  font-size: var(--type-caption);
   line-height: 1.45;
   color: #becfc2;
 }
@@ -1182,7 +1184,7 @@ a {
   justify-content: space-between;
   gap: 12px;
   padding: 17px 6px 3px;
-  font-size: 10px;
+  font-size: var(--type-small);
   color: #7e9c8a;
 }
 .neon-modal-backdrop {
@@ -1219,13 +1221,13 @@ a {
   margin-bottom: 18px;
 }
 .neon-modal-title h2 {
-  font-size: 21px;
+  font-size: 22px;
   letter-spacing: -0.04em;
   margin: 0 0 7px;
 }
 .neon-modal-title p {
   color: #a2b9aa;
-  font-size: 12px;
+  font-size: var(--type-label);
   margin: 0;
 }
 .neon-editor {
@@ -1251,13 +1253,14 @@ a {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--type-label);
   color: #bbd3c0;
-  font-weight: 650;
+  font-weight: 600;
 }
 .neon-form input,
 .neon-form select,
 .neon-form textarea {
+  font-size: var(--type-body);
   width: 100%;
   padding: 11px 13px;
   border: 1px solid #315740;
@@ -1316,7 +1319,7 @@ a {
   text-align: center;
   letter-spacing: 0.16em;
   font-size: 30px;
-  font-weight: 800;
+  font-weight: 700;
   padding: 22px;
   border: 1px dashed #66f4aa99;
   border-radius: 10px;
@@ -1324,7 +1327,7 @@ a {
 }
 .neon-modal-instruction {
   color: #bed3c2;
-  font-size: 13px;
+  font-size: var(--type-body);
   line-height: 1.6;
 }
 .neon-pairing-ready {
@@ -1463,7 +1466,7 @@ a {
     width: auto;
     flex: 0 0 auto;
     height: 35px;
-    font-size: 11px;
+    font-size: 12px;
     padding: 0 11px;
     gap: 6px;
   }
@@ -1484,7 +1487,7 @@ a {
     font-size: 23px;
   }
   .neon-page-title p {
-    font-size: 11px;
+    font-size: 12px;
   }
   .neon-top-chip {
     display: none;
@@ -1514,10 +1517,10 @@ a {
     display: block;
   }
   .neon-status-card strong {
-    font-size: 11px;
+    font-size: 12px;
   }
   .neon-status-card span:not(.neon-dot) {
-    font-size: 10px;
+    font-size: 11px;
   }
 }
 @media (max-width: 470px) {
@@ -1548,14 +1551,14 @@ a {
     display: none;
   }
   .neon-status-card strong {
-    font-size: 10px;
+    font-size: 11px;
   }
   .neon-section-tools {
     flex-wrap: wrap;
     justify-content: flex-end;
   }
   .neon-section-heading p {
-    font-size: 11px;
+    font-size: 12px;
   }
   .neon-panel {
     padding: 13px 9px;
@@ -1579,10 +1582,10 @@ a {
     display: none;
   }
   .neon-file-details strong {
-    font-size: 10px;
+    font-size: 11px;
   }
   .neon-file-details span {
-    font-size: 9px;
+    font-size: 10px;
   }
   .neon-quick-actions {
     grid-template-columns: 1fr;
