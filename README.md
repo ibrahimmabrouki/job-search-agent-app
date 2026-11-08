@@ -16,6 +16,13 @@ Job Search Agent automates recurring searches for relevant software-engineering 
 - **WhatsApp self-chat:** Connect an account via QR pairing and use it as the delivery channel for results.
 - **Recent activity:** View scheduler run summaries and integration status (not full agent runtime logs).
 
+## Documentation
+
+- [Full application overview and setup](README.md) (this file)
+- [Next.js dashboard and API architecture](app/README.md)
+- [Control-panel code walkthrough](app/docs/control-panel-ui.md)
+- [FastAPI Hermes Manager and WhatsApp lifecycle](docker/hermes/manager/README.md)
+
 ## Architecture
 
 The interface talks only to the application's own Next.js API routes. Server-side controllers and services communicate with Hermes and the custom FastAPI Manager through dedicated HTTP clients.
@@ -37,7 +44,7 @@ flowchart TD
     FM --> WA
 ```
 
-**Runtime:** Docker Compose starts the custom Hermes container (including the FastAPI Manager) and two TCP bridge containers. Docker exposes the Hermes API on `127.0.0.1:9119` and Manager API on `127.0.0.1:9200`; the dashboard runs separately at `http://localhost:3000`.
+**Runtime:** Docker Compose starts the custom Hermes container (including the FastAPI Manager) and two TCP bridge containers. Docker exposes the Hermes API on `127.0.0.1:9119` and Manager API on `127.0.0.1:9200`; the dashboard runs separately at `http://localhost:3000`. See the [Manager README](docker/hermes/manager/README.md) for the connection lifecycle and safeguards.
 
 ## End-to-End Workflow
 
@@ -104,8 +111,12 @@ docker compose ps
 
 ### 4. Configure and start the Next.js dashboard
 
+The QR component currently imports a dependency declared at the repository root. Install both root-level and Next.js dependencies:
+
 ```powershell
+npm install
 cd app
+npm install
 Copy-Item .env.example .env.local
 notepad .env.local
 ```
@@ -118,11 +129,9 @@ MANAGER_BASE_URL=http://127.0.0.1:9200
 HERMES_DASHBOARD_SESSION_TOKEN=your_same_secret_here
 ```
 
-> **Current repository note:** `app/.env.example` uses `HERMES_MANAGER_URL`, but the backend currently reads `MANAGER_BASE_URL`. Use the latter as shown above until the example is corrected. Also, `qrcode.react` is currently declared in the root package rather than `app/package.json`, so install it within `app` as an interim workaround.
+> **Current repository note:** `app/.env.example` uses `HERMES_MANAGER_URL`, but the backend currently reads `MANAGER_BASE_URL`. Use the latter as shown above. The `qrcode.react` dependency is currently declared in the root package rather than `app/package.json`; the root `npm install` above installs it for the dashboard.
 
 ```powershell
-npm install
-npm install qrcode.react@^4.2.0
 npm run dev
 ```
 
@@ -148,7 +157,7 @@ docker exec -e PYTHONPATH=/opt/hermes-manager -w /opt/hermes-manager job-search-
 docker exec -e PYTHONPATH=/opt/hermes-manager -w /opt/hermes-manager job-search-agent /opt/hermes/.venv/bin/python tests/integration/test_reconnect_flow.py
 ```
 
-These are targeted Python tests, not a claim of complete end-to-end test coverage.
+These are targeted Python tests, not a claim of complete end-to-end test coverage. For their purpose and safety constraints, see the [Manager tests guide](docker/hermes/manager/README.md#tests).
 
 ## Current Limitations & Roadmap
 
