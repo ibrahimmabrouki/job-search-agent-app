@@ -1,0 +1,137 @@
+
+<!--  Then a supervisor solves that, It works like this:
+
+ Supervisor
+ │
+ ├── starts Gateway
+ ├── starts Hermes Serve
+ ├── watches Gateway
+ ├── watches Hermes Serve
+ ├── restarts them if needed
+ └── shuts them down cleanly
+
+ So the supervisor is like a small manager inside the container.
+
+ In the Hermes image, that manager is called s6. We already saw evidence of it in your logs:
+ s6-rc
+ main-hermes
+ dashboard
+
+ Conceptually, the container may have something like:
+ s6 services
+ │
+ ├── main-hermes
+ │   └── starts Hermes Gateway
+ │
+ ├── dashboard
+ │   └── starts Hermes backend/dashboard
+ │
+ └── other Hermes services
+
+ A service definition usually contains a script or config that says: Run this command: hermes serve --host 127.0.0.1 --port 9119 --skip-build
+
+ So instead of us manually hacking two commands into Compose, we add a proper supervised service.
+ That gives us:
+ Docker container
+ │
+ └── s6 supervisor
+     ├── Hermes Gateway
+     └── Hermes Serve -->
+
+<!-- 
+The run file tells s6: Start our Manager API and supervise it.
+That means if our manager crashes unexpectedly, s6 can manage the process rather than us running something like: python main.py &
+That is much more appropriate for a production container. -->
+
+#!/command/with-contenv sh
+
+set -e
+
+cd /opt/hermes-manager
+
+exec /opt/hermes/.venv/bin/uvicorn \
+  app.main:app \
+  --host 127.0.0.1 \
+  --port 9200
+
+Start the Hermes Manager API
+using Uvicorn
+on port 9200 
+
+
+There are three main pieces where each of these three has a complete different job
+Note: The whole system like this: 
+Your Windows project
+        │ docker build
+        ▼
+Docker IMAGE
+        │ docker compose up
+        ▼
+Running CONTAINER
+        ├── Hermes
+        ├── s6 supervisor
+        └── our Manager API
+
+A- manager/app/... = our actual application -developed on windows-
+having this application does not mean that it is going to be automatically turn on ==> There should be something that start it.
+
+B- run: This is an instructions file that tells s6 how to start the application
+
+Container starts
+    ↓
+s6 supervisor starts
+    ↓
+s6 reads manager/run
+    ↓
+Uvicorn starts
+    ↓
+FastAPI loads app.main:app
+    ↓
+GET /health becomes available
+
+In general the role of the above script is simply: When s6 wants to start the Manager service, this is the command it should excute
+
+==> we can think of manager/app as a car and run as a key to start this car
+
+How does run find main.py? 
+we have: cd /opt/hermes-manager So, inside the container we move here: /opt/hermes-manager since our application will look like: 
+/opt/hermes-manager/
+└── app/
+    ├── main.py
+    └── api/
+
+Then after finding the application inside the Hermes container we have Open app/main.py and find the FastAPI variable called app. ==> That's the direct connection between the run file and our Python application.
+
+C- We have the Dockerfile = instructions fo putting everything inside the image and it is completly different from the run file 
+Note: The Dockerfile does not normally start our application, it main role is Build a Docker image containing Hermes + our files.
+==> continue the explanation in the Docker file 
+
+
+1- #!/command/with-contenv sh: This tells the container to run the script with the shell provided by s6, while preserving environment variables.
+2- set -e means: If a command fails, stop the script instead of continuing in a broken state.
+3- cd /opt/hermes-manager means: Move into the folder where we will copy our Manager application.
+Later our Dockerfile will create:
+/opt/hermes-manager/
+└── app/
+    ├── main.py
+    ├── api/
+    ├── services/
+    └── ...
+
+Then:
+4- exec /opt/hermes/.venv/bin/uvicorn: starts Uvicorn using Hermes' own Python virtual environment.
+
+Then: 
+5- app.main:app means:
+app/
+└── main.py
+      └── variable named app
+
+Then: 
+6- --host 127.0.0.1: means the Manager API listens only inside the container.
+7- --port 9200 means the Manager API uses: 127.0.0.1:9200 inside the Hermes container.
+
+So eventually inside the container:
+9119 → Hermes dashboard/API
+9200 → our Manager API
+3000 → WhatsApp bridge when active

@@ -1,0 +1,9 @@
+#!/command/with-contenv sh
+
+cd /opt/hermes-manager
+. /opt/hermes/.venv/bin/activate
+
+exec s6-setuidgid hermes uvicorn \
+    app.main:app \
+    --host 127.0.0.1 \
+    --port 9200

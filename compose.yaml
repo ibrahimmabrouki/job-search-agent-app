@@ -1,0 +1,626 @@
+# Instead of using Hermes' existing Compose file directly, we want our own clean application configuration inside job-search-agent-app.
+# This compose file is used to run the application in a local environment
+
+# first we need to create the Hermes Gateway container:
+# In normal cases Gateway is the always running Hermes service that handles things that need Hermes to stay alive, such as messaging integrations and schedule work (when we have cron job we need the gateway to be always running watching the cron job and executing the scheduled work).
+# and this Gateway is also important since we want the agent running continuously and communicating through the WhatsApp
+
+#                 HERMES GATEWAY
+#                      │
+#     ┌────────────────┼────────────────┐
+#     ↓                ↓                ↓
+# WhatsApp           Cron          Hermes Agent
+#     │                │                │
+#     └────────────────┴────────────────┘
+#                      ↓
+#              Job Search Agent
+
+# Gateway is running ==> Hermes cron sees: "Job Search Agent is due" ==> starts the agent run ==> agent searches jobs ==> result ==> Gateway ==> WhatsApp
+
+# 1- This file represents a Docker application that can contain one or several running components (containers)
+# 2- Docker application is defined in a way to have one or multiple services and each service can have one or multiple containers running the same image (replicas)
+# Application
+# │
+# ├── Web server
+# ├── Database
+# └── Redis
+
+# 3- The first service is gateway: we name it gateway since this container will run the Hermes Gateway we discussed earlier.
+
+# 4- image: This is used to tell Docker which packaged software should be used to create the container.
+
+# - Docker Image ==> packaged software/template ==> Docker creates ==> Container <==> running instance of that image
+# - we will use the image nousresearch/hermes-agent:latest  instead of manually installing: Linux, Python, Node.js, Hermes, Chromium, Hermes dependencies ...
+# - latest is a tag that tells Docker to use the latest version of the image
+
+# 5- container_name: When Docker creates a running container from the image, we're telling it to name that container: job-search-agent ==> inside Docker Desktop: Containers ==> job-search-agent: Running
+
+# 6- restart: unless-stopped: This is important for the eventual 24/7 agent ==> Keep this container running and restart it when appropriate, unless I intentionally stopped it.
+# - Cloud server running ==> Hermes running ==> something crashes ==> Docker restarts container ==> Hermes runs again
+
+# 7- volumes: -extremely important- since Docker containers have their own filesystem and when the container is removed, all data inside it is lost. So we need to create a volume that will persist the data outside the container.
+# - ./hermes-data:/opt/data: This means that the local folder hermes-data (in the same directory as this compose.yaml file) will be mounted to the container's /opt/data folder. So any data that Hermes writes to /opt/data will be saved in the local hermes-data folder and will persist even if the container is removed.
+# - why hermes-data? will be mounted to /opt/data? since Hermes uses /opt/data as its data folder as we can confirm from the Dockerfile of the image nousresearch/hermes-agent:latest
+
+# - But this solution is not perfect since the location of the permenant data is not inside the container, but in the local folder hermes-data in the same directory as this compose.yaml file.
+# - The fact that Hermes stores databases such as state.db, cron database, etc inside /opt/data
+# - everytime Hermes is wants to access certain files ==> it will:
+# - Hermes ==> Linux container ==> Docker's Linux VM ==> Windows filesystem ==> hermes-data/
+
+# - The solution is using Docker named volume instead ==> moving the data from the local folder hermes-data to a Docker named volume
+# - The setup is moved from:
+# volumes:
+#  - ./hermes-data:/opt/data
+# ./ ==> current directory of the compose.yaml file
+# - To:
+# services:
+#   gateway:
+#     volumes:
+#       - hermes-data:/opt/data
+
+# volumes:
+#   hermes-data:
+# in this case ==> Docker-managed named volume
+
+# Windows
+# │
+# └── Docker Desktop
+#      │
+#      └── Linux environment
+#           │
+#           ├── job-search-agent container
+#           │       │
+#           │       └── /opt/data
+#           │              ↕
+#           │
+#           └── Docker volume
+#                  hermes-data
+
+# - This design is better but comes with tradeoff with old design we can physically see the data in the local folder but with Docker named volume we cannot see the data (But it remains persitant sine it is outside the service container)
+# - So rebuilding/updating the application doesn't mean losing authentication, cron state, WhatsApp state, etc.
+
+# 8- environment: These are environment variables.
+# - An environment variable is basically a configuration value provided to a program when it runs.
+# - ==> Docker "start Hermes with these env <==> settings"
+
+# 9- command: ["gateway", "run"]: This tells the Hermes image what we want it to run when the container starts.
+# - Conceptually it means: services:Docker starts container ==> Hermes environment starts ==> gateway run ==> Hermes Gateway keeps running
+#defining the service
+
+services:
+  gateway:
+    # since now we are using the Custom image that we built for the purpose of adding the Hermes Manager which is responsible for connecting and reconnecting the WhatsApp
+    # image: nousresearch/hermes-agent:latest
+
+    # we are going to use the custom image, in that image we have officail nousresearch/hermes-agent:latest but not necessarily the latest since we want to stick to a working well tested version
+    # and we have built manager application which is a server -service- that runs also automatically inside the same container and it is responsible for connecting and reconnecting the WhatsApp
+    # since both the Hermes serve and Manager service are running inside the same container and they share the same /opt/data folder, the Manager service can access the Hermes Serve and control it to connect and reconnect the WhatsApp
+    image: job-search-agent-hermes:dev
+    container_name: job-search-agent
+    restart: unless-stopped
+
+    volumes:
+      - hermes-data:/opt/data
+
+    environment:
+      - HERMES_UID=10000
+      - HERMES_GID=10000
+      - HERMES_DASHBOARD=true
+      - HERMES_DASHBOARD_HOST=127.0.0.1
+      - HERMES_DASHBOARD_PORT=9119
+      - HERMES_DASHBOARD_SESSION_TOKEN=${HERMES_DASHBOARD_SESSION_TOKEN}
+    # This backend Hermes backend listening on 127.0.0.1:9119, this means that Only programs inside the container can reach port 9119
+    # If we want to make this container's Hermes backend accessible from outside the container, we need to map the container's port 9119 to a port on the host machine (your Windows PC).
+    #     Windows port 9119
+    #         │
+    #         │ Docker forwards it
+    #         ↓
+    # Container port 9119
+    #         │
+    #         ↓
+    # Hermes Server inside the container
+    #     Windows
+    # │
+    # ├── Next.js
+    # │     │
+    # │     │ calls
+    # │     ↓
+    # │ 127.0.0.1:9119
+    # │     │
+    # │     │ Docker port mapping
+    # │     ↓
+    # └── Docker container
+    #       │
+    #       └── Hermes Serve
+    #           listening on
+    #           0.0.0.0:9120
+    ports:
+      - "127.0.0.1:9119:9120"
+      - "127.0.0.1:9200:9220"
+
+      # 127.0.0.1:9119:9120
+      # │         │    │
+      # │         │    └── port 9120 inside the container
+      # │         │
+      # │         └─────── port 9119 on Windows
+      # │
+      # └───────────────── only expose it on your own computer
+
+    # Docker ports mapping → Docker forwards Windows traffic into the container
+    command: ["gateway", "run"]
+
+  hermes-bridge:
+    image: alpine/socat:latest
+    container_name: job-search-agent-hermes-bridge
+    restart: unless-stopped
+
+    network_mode: "service:gateway"
+
+    command: ["TCP-LISTEN:9120,fork,reuseaddr", "TCP:127.0.0.1:9119"]
+
+    # gateway restarts through Docker Compose
+    # ==> Compose also restarts hermes-bridge
+    # ==> bridge reattaches correctly
+    # ==> Windows port 9119 keeps working
+    depends_on:
+      gateway:
+        condition: service_started
+        restart: true
+
+  # here we are going to define new bridge for the Hermes Manager service that is running inside the same container as the Hermes Gateway and Hermes Serve
+  # Browser / Next.js (http://127.0.0.1:9200) ==> Docker port mapping ==> Manager bridge :9220 ==> Manager API (127.0.0.1:9200)
+  # So eventually:
+  # Windows :9119 → bridge :9120 → Hermes :9119
+  # Windows :9200 → bridge :9220 → Manager :9200
+  hermes-manager-bridge:
+    image: alpine/socat:latest
+    container_name: job-search-agent-manager-bridge
+    restart: unless-stopped
+
+    network_mode: "service:gateway"
+
+    command: ["TCP-LISTEN:9220,fork,reuseaddr", "TCP:127.0.0.1:9200"]
+
+    depends_on:
+      gateway:
+        condition: service_started
+        restart: true
+
+# Here the volume is defined outside the service definition, this is a named volume that Docker will manage and persist data outside the container.
+# This will create job-search-agent-app_hermes-data volume
+# Compose project name        Volume name
+#         ↓                       ↓
+# job-search-agent-app    +    hermes-data
+
+# why this naming? simply since is Docker managed volume
+# so if we have multiple Composed application having the same volume name running on the same Docker Desktop ==> Docker will create a unique volume name
+volumes:
+  hermes-data:
+
+# compose.yaml
+#       │ "Docker, when I eventually ask you
+#       │  to start this application..."
+#       ↓
+# Official Hermes image
+#       ↓
+# Create container:
+# job-search-agent
+#       ├── run Hermes Gateway
+#       ├── restart unless intentionally stopped
+#       └── connect:
+#              /opt/data
+#                  ↕
+#              Docker named volume
+#                  hermes-data
+
+# Commands:
+# 1- To validate the compose.yml file (Docker reads compose.yaml, interprets it, and checks whether the structure is valid. It does not start the container.)
+# - docker compose config
+
+# 2- To download the image image: nousresearch/hermes-agent:latest
+# - docker compose pull
+
+# 3- To create and start the container (Docker reads compose.yaml, interprets it, and starts the container.)
+# - docker compose up -d
+# - (-d) means detached mode ==> without it, PowerShell would stay attached to running container
+# - docker compose up -d ==> Container starts ==> Hermes Gateway keeps running ==> PowerShell returns to you
+
+# 4- To see the status of the container belonging to this Compose application
+# - docker compose ps
+
+# - To see the logs of the container belonging to this Compose application: text/output produced by the application running inside the container.
+# - docker compose logs --tail 100 gateway
+
+# 5- To stop and remove the old container and its Comose network
+# - docker compose down
+
+# - Note: Hermes is an application that contains several pieces, and the Hermes Gateway is the long-running service we are currently running inside the container.
+# - In case we have no Docker Hermes for example is installed directly on the host machine
+# Your host computer
+# │
+# ├── PowerShell
+# │
+# ├── hermes.exe
+# │
+# ├── Hermes configuration
+# │
+# ├── authentication
+# │
+# ├── cron
+# └── WhatsApp state
+# When we type hermes --version => the host machine will search for its PATH and find C:\Users\RSS-09\AppData\Local\hermes\bin\hermes.exe for example and excute it and return the version
+
+# Now in case of Docker where we have computer-like environment inside the container: think of the container as a small isolated Linux computer
+# Your Windows PC
+# │
+# ├── Native Windows
+# │   └── old Hermes
+# │
+# └── Docker
+#      │
+#      └── job-search-agent container
+#           │
+#           ├── Linux environment
+#           ├── Hermes
+#           ├── Python
+#           ├── Chromium
+#           ├── dependencies
+#           └── Gateway ← currently running
+
+# When we want to use hermes command such as hermes --version, hermes model, hermes auth, hermes cron list and many more (allow us to interact with/configure Hermes.)
+# if we type hermes --version inside the powerShell ==> Windows executes the Windows Hermes
+# it does not automatically send that command into Docker
+
+# We need to tell Docker to execute the command inside the container ==> we use docker exec "Docker, execute this command inside this running container"
+
+# 6- docker exec job-search-agent hermes --version
+# - docker exec: Execute something inside a running container
+# - job-search-agent: The name of the container we want to execute the command inside
+# - hermes --version: The command we want to execute inside the container
+
+# Some notes:
+# we need first to understand what an IP address and a port mean
+
+# 1- A server like Hermes Serve is a program that needs an address and a port to listen to incoming requests.
+# So, if Hermes Serve starts like this:
+# Hermes Serve: IP: 127.0.0.1 | Port: 9119
+
+# The port is a number that identifies a specific process or service on a computer
+# The IP address tells the operating system which network interface/enterance to use for communication.
+
+# So, 127.0.0.1:9119 means that Hermes is listening on port 9119, but only through this machine's internal loopback interface
+# Loopback is defined as the IP address
+
+# What exactly is 127.0.0.1? 127.0.0.1 means: this computer/environment itself and it is commonly called localhost
+
+# Assume that Hermes is installed directly on Windows ==>
+# Windows
+# │
+# ├── Browser
+# ├── Next.js
+# └── Hermes
+
+# Then it will be simple Next.js ==> 127.0.0.1:9119 ==> Hermes
+
+# Now, With Docker the definition of localhost since Docker container is a separate environment, so this container has its own network environment
+# We can think of the container as a small isolated linux computer ==> so now we have:
+# Your Windows PC
+# │
+# ├── Next.js
+# │
+# └── Docker
+#      │
+#      └── Hermes container
+#           └── Hermes Serve
+
+# There are effectively two different computers here that has 127.0.0.1
+# - Windows 127.0.0.1
+# - Docker container 127.0.0.1
+
+# This is extremely important to understand since when we say Hermes backend listening on 127.0.0.1:9119
+# This means that Hermes is listening on port 9119 inside Docker container Hermes accepts connections coming from inside that container's own local network environment.
+# ==> It does not mean Windows can automatically access it.
+
+# Why did this work before? docker exec job-search-agent curl http://127.0.0.1:9119/api/status
+# - docker exec: Execute something inside a running container
+# - job-search-agent: The name of the container we want to execute the command inside
+# So, the curl command is executed inside the container itself, so it can access
+# Hermes container
+# │
+# ├── curl
+# │     ↓
+# │   127.0.0.1:9119
+# │     ↓
+# └── Hermes Serve
+
+# Why can't Windows Next.js access it?
+# Your Next.js development server currently runs on Windows
+# If Next.js calls: http://127.0.0.1:9119
+
+# Windows interprets that as: Windows' own localhost
+# It does not mean: Docker container's localhost
+
+# So without additional Docker configuration:
+# Next.js ==> Windows 127.0.0.1:9119 ==> nothing listening there
+
+# Meanwhile Hermes is hidden over here:
+# Docker container
+# └── 127.0.0.1:9119
+
+# 2- So, we need to configure Docker mapping so that when Windows Next.js calls http://127.0.0.1:9119, it actually reaches the Hermes service inside the Docker container.
+# So, we need to create a forwarding rule that says: "When Windows receives a request on port 9119, forward it to the Docker container's port 9119"
+# 127.0.0.1:9119 : 9119
+#     HOST        CONTAINER
+
+# Conceptually, this is what happens:
+# Windows
+# 127.0.0.1:9119
+#        ↓
+#      Docker
+#        ↓
+# container port 9119
+
+# This is called publishing/mapping a port.
+# You are telling Docker: When Windows receives traffic on port 9119, forward it to port 9119 in this container.
+
+# Now, why does not mapping alone work? This is the important part
+# suppose that we have mapped the port like this:
+# ports:
+#   - "127.0.0.1:9119:9119"
+
+# Docker successfully forwards traffic toward the container: Windows Next.js ==> Windows 127.0.0.1:9119 ==> Docker forwarding ==> container network interface :9119
+# But Hermes Serve is listening on: container 127.0.0.1:9119
+
+# Those are not quite the same thing sicne we can think of it as:
+# Container
+# │
+# ├── Loopback interface
+# │     127.0.0.1
+# │
+# └── Docker network interface
+#       e.g. 172.x.x.x
+
+# Hermes currently says: I only accept connections through: 127.0.0.1
+# Docker's forwarded traffic enters through the container's Docker network interface. Hermes isn't listening there.
+
+# Docker successfully delivers traffic to container ==> container network ==> Hermes says "I'm only listening on localhost" ==> fail
+# That is why publishing a port does not automatically change what address the application itself is listening on.
+
+# 3- Now we have 0.0.0.0 This where the confucions works
+# 0.0.0.0 is generally not an IP address you navigate to. So, we don't normally open: http://0.0.0.0:9119
+# in other words, 0.0.0.0 means "listen on all available network interfaces"
+# Instead, 0.0.0.0 has a special meaning when a server is binding/listening.
+
+# It means: Listen on all network interfaces belonging to this machine/environment.
+# For a container, imagine: Container network interfaces
+
+# 127.0.0.1       ← internal localhost
+# 172.x.x.x       ← Docker network interface
+
+# If Hermes binds to: 127.0.0.1:9119
+
+# it listens only here:
+# 127.0.0.1 ✅
+# 172.x.x.x ❌
+
+# If Hermes binds to: 0.0.0.0:9119
+
+# it effectively says:
+# 127.0.0.1 ✅
+# 172.x.x.x ✅
+# other container interfaces ✅
+
+# What Does binding means: Hermes binds to 127.0.0.1:9119
+# it means: Hermes asks Linux to reserve/listen on port 9119 specifically on the localhost interface.
+
+# When we say Hermes binds to 0.0.0.0:9119
+# it means: Hermes asks Linux to listen on port 9119 on every network interface available inside that environment.
+
+# Binding vs mapping:
+# Binding
+# → What network interfaces is Hermes listening on?
+
+# Port mapping
+# → Where should Docker forward host traffic?
+
+# They work together:
+# Application inside container:
+# 0.0.0.0:3000
+#         ↓
+
+# Docker:
+# 127.0.0.1:3000 → container:3000
+#         ↓
+
+# Browser:
+# http://127.0.0.1:3000
+
+# But the problem now is that Why can't we simply make Hermes use 0.0.0.0?
+# we tried to do that by: hermes serve --host 0.0.0.0
+
+# Hermes refuses to bind since hermes has a security rule
+
+# 4- To Solve this problem we need to implement the concept of "bridge"
+# so we use socat to create a bridge between the container's
+# we don't need to deeply understand socat yet. Think of it as a tiny network forwarder.
+
+# Listen here: 0.0.0.0:9120
+
+# Forward everything to: 127.0.0.1:9119
+
+# Incoming Docker traffic
+#         ↓
+# 0.0.0.0:9120
+#         ↓
+#       socat
+#         ↓
+# 127.0.0.1:9119
+#         ↓
+# Hermes Serve
+
+# ==> Hermes never has to change from: 127.0.0.1 (The bridge is the component that accepts external Docker traffic.)
+# Why port 9120? sicne Hermes is already using 127.0.0.1:9119
+# So, the bridge needs its own port to listen on ==> arbitrariy we choose 9120
+# Bridge
+# listens on 9120
+#         ↓
+# forwards to
+# Hermes 9119
+
+# Then Docker maps Windows 9119 to bridge 9120
+# ports:
+#   - "127.0.0.1:9119:9120"
+
+# NEXT.JS ON WINDOWS
+#        │
+#        │ HTTP request
+#        ↓
+# 127.0.0.1:9119
+#        │
+#        │ Docker port mapping
+#        ↓
+# 0.0.0.0:9120
+# inside Docker network
+#        │
+#        │ socat bridge
+#        ↓
+# 127.0.0.1:9119
+# inside Hermes network
+#        │
+#        ↓
+# HERMES SERVE
+
+# 16. Why is the first side 127.0.0.1 in Compose?
+# We wrote: "127.0.0.1:9119:9120" instead of simply: "9119:9120"
+# This is another important security decision.
+# The first: 127.0.0.1 refers to your Windows host.
+# It says: Publish this Docker port only on Windows localhost.
+
+# Windows 127.0.0.1
+# → keep published Docker port local to your PC
+
+# Container Hermes 127.0.0.1
+# → keep Hermes Serve local to its runtime environment
+
+# Where does 0.0.0.0 exist in our bridge architecture?
+# Hermes itself does not use: 0.0.0.0:9119 in our intended design.
+# Hermes stays: 127.0.0.1:9119
+
+# The bridge uses: 0.0.0.0:9120
+
+# That means: bridge, accept traffic arriving from Docker.
+
+# Then it forwards that traffic locally to Hermes: 127.0.0.1:9119
+
+# Bridge: 0.0.0.0:9120 ==> Hermes: 127.0.0.1:9119
+
+# ================================================================
+# ================================================================
+
+# After testing the API: http://127.0.0.1:9119/api/status from the browser the problem is not the networking anymore
+# Browser on Windows ==> Windows 127.0.0.1:9119 ==> Docker port mapping ==> bridge ==> Hermes Serve
+# Since the request reaches Hermes Serve, ==> The bridge for binding and port mapping for exposing are working correctly.
+
+# The problem appeared in the JSON response where
+# "gateway_running": false,
+# "gateway_state": "stopped"
+
+# But we knew that the Gateway container was actually running
+# Why did Hermes Serve think the Gateway was stopped?
+# Since at that moomnet we had this architecture:
+# Container 1
+# └── Hermes Gateway
+
+# Container 2
+# └── Hermes Serve
+
+# Eventhough both containers are sharing the same named volume they share the same network but they are not running in the same process environemnt
+
+# The Solution is to run both processes the Gateway and the Hermes Serve in the same container
+# job-search-agent container
+# ├── Hermes Gateway
+# └── Hermes backend/dashboard
+
+# Now The Challenge is to keep one Hermes container that will run the Gateway and start the server automatically when the container starts.
+# What we want is something like this
+# job-search-agent container
+# │
+# ├── Hermes Gateway
+# └── Hermes Serve
+#     └── 127.0.0.1:9119
+
+# this is important sicne both are going to be in the same container and they will share the same:
+# container
+# network namespace
+# process environment
+# /opt/data
+# Hermes installation
+
+# This way hermes serve can correctly detect and control the Gateway and we don't want something like Docker is manually backgrounding processes, shutdown/restart handling becomes messy, and we would be fighting the Hermes image's own supervisor.
+# The officail Hermes container is using s6 which is a process supervisor which is simply a program whose job is to start, watch and mange other long-running programs
+
+# In normal container, Docker usually expects one main process, But in this case inside the same Hermes conatiner we want two long-running processes
+# Hermes Gateway
+# Hermes Serve
+
+# If we just start them with shell tricks like: hermes gateway run & hermes serve ...
+# then nobody is really managing them properly. If one crashes, it may stay dead. Shutdowns can be messy. Logs and restarts become harder to control.
+
+# Then a supervisor solves that, It works like this:
+
+# Supervisor
+# │
+# ├── starts Gateway
+# ├── starts Hermes Serve
+# ├── watches Gateway
+# ├── watches Hermes Serve
+# ├── restarts them if needed
+# └── shuts them down cleanly
+
+# So the supervisor is like a small manager inside the container.
+
+# In the Hermes image, that manager is called s6. We already saw evidence of it in your logs:
+# s6-rc
+# main-hermes
+# dashboard
+
+# Conceptually, the container may have something like:
+# s6 services
+# │
+# ├── main-hermes
+# │   └── starts Hermes Gateway
+# │
+# ├── dashboard
+# │   └── starts Hermes backend/dashboard
+# │
+# └── other Hermes services
+
+# A service definition usually contains a script or config that says: Run this command: hermes serve --host 127.0.0.1 --port 9119 --skip-build
+
+# So instead of us manually hacking two commands into Compose, we add a proper supervised service.
+# That gives us:
+# Docker container
+# │
+# └── s6 supervisor
+#     ├── Hermes Gateway
+#     └── Hermes Serve
+
+# This is cleaner because both processes:
+# - live in the same container,
+# - share the same process environment,
+# - share the same network namespace,
+# - share the same Hermes installation and /opt/data,
+# - and are managed properly.
+# So in one sentence: s6 is the internal process manager, and the s6 service structure is the set of service definitions that tell it what processes to run and manage.
+
+# What was found is that s6-managed dashboard service can start the Hermes backend when we set
+# HERMES_DASHBOARD=true
+# HERMES_DASHBOARD_HOST=127.0.0.1
+# HERMES_DASHBOARD_PORT=9119
+
+# so instead of us manually starting Hermes Serve or having seperate containers for Gateway and Serve
+# we will have One Hermes container:
+# ONE Hermes container
+# ├── gateway run
+# └── dashboard/backend on 127.0.0.1:9119
+# Then Hermes Serve and Gateway share everything they need: Now Hermes Serve should correctly see: gateway_running: true

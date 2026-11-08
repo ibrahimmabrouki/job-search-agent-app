@@ -1,0 +1,30 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dependencies
+node_modules/
+.venv/
+
+# Build output
+.next/
+dist/
+build/
+
+# Docker persistent data
+hermes-data/
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# Operating system
+.DS_Store
