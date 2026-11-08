@@ -1,75 +1,109 @@
-# Job Search Agent — Coffee Shop Menu structure
+# Control Panel — Frontend Architecture and Request Flow
 
-## Why this structure
+This guide describes the **implemented** Next.js dashboard of [Job Search Agent](../../../README.md). For installation and environment configuration, see [app/README.md](../README.md). For the WhatsApp backend lifecycle, see the [FastAPI Manager README](../../../docker/hermes/manager/README.md).
 
-The Coffee Shop Menu repository uses a simple and repeatable path:
+## Why This Structure?
 
-`AdminPage → CategoriesManager → category-service.ts → API route → controller → backend service → repository`.
-
-The Job Search Agent now follows that **same file organization and coding style**. Hermes and the WhatsApp Manager are external backends, so their clients take the place of Coffee Shop's database repositories. We do not add an unnecessary browser context, custom feature hooks, generic action executors, or a generic browser API client.
-
-## Files to look at
+The application keeps each responsibility in a predictable layer:
 
 ```text
-src/
-  app/
-    page.tsx                                # Opens the dashboard
-    api/v1/...                              # Existing Next.js API endpoints
-  components/
-    control-panel/
-      control-panel-dashboard.tsx           # Render DashboardManager
-      dashboard-manager.tsx                 # Load statuses/jobs, dashboard layout, Quick Actions
-      dashboard-header.tsx                  # Header and errors, props only
-      status-overview.tsx                   # Status cards, props only
-      activity-panel.tsx                    # Scheduler activity, props only
-      quick-actions.tsx                     # Buttons, props only
-      sidebar.tsx                           # Navigation, props only
-      connections/
-        connections-manager.tsx             # Codex/WhatsApp state and functions
-        connections-panel.tsx               # Connection cards
-        codex-login-dialog.tsx              # Login dialog
-        whatsapp-pairing-dialog.tsx         # Pairing dialog
-      scheduler/
-        scheduler-manager.tsx               # Job CRUD and actions
-        scheduler-list.tsx                  # Job table
-        job-dialog.tsx                      # Create/edit form
-      workspace/
-        workspace-manager.tsx               # Read, save, CV upload
-        workspace-panel.tsx                 # File cards
-        file-editor-dialog.tsx              # Text editor
-      ui/dialog-shell.tsx                   # Shared popup frame
-  lib/
-    admin-services/
-      hermes-service.ts                     # GET /api/v1/status
-      codex-service.ts                      # Codex requests
-      whatsapp-service.ts                   # WhatsApp requests
-      scheduler-service.ts                  # Scheduler requests
-      workspace-service.ts                  # Workspace requests
-      format.ts                             # Display dates
-  server/
-    controllers/                             # Existing backend controllers
-    services/                                # Existing backend services
-    clients/                                 # Existing Hermes/Manager clients
-  types/
-    control-panel/control-panel.types.ts    # Frontend types
+Browser UI component
+  -> Client-side admin service (fetch)
+  -> Next.js API route
+  -> Controller
+  -> Application service
+  -> HermesClient or ManagerClient
+  -> Dockerized Hermes / FastAPI Manager
 ```
 
-## How to debug a failed button (example: WhatsApp Reconnect)
+**Why:** React components shouldn't need to know upstream ports, authentication headers, error mapping, or filesystem rules. API and backend layers can change independently of the dashboard.
 
-1. Find **`connections-panel.tsx`**. This has the button and calls `beginWhatsAppPairing`.
-2. Find **`connections-manager.tsx`**. This contains `handleStartWhatsApp`, catches errors, and reports a message.
-3. Find **`lib/admin-services/whatsapp-service.ts`**. This sends `POST /api/v1/whatsapp/connect`.
-4. Find **`app/api/v1/whatsapp/connect/route.ts`** and the existing controller/service in `server/`.
-5. Inspect the corresponding Manager Bridge and Hermes containers only if the backend request fails.
+## Main Source Files
 
-Everything follows plain React `useState`, `useEffect`, `async/await`, direct `fetch`, and component props, the same approach used by Coffee Shop's `CategoriesManager` and `MenuItemsManager`.
+```text
+app/src/
+├── app/
+│   ├── page.tsx                        # Renders DashboardManager
+│   ├── layout.tsx                      # Root shell and font
+│   ├── globals.css                     # Theme and typography
+│   └── api/v1/                         # Server-side HTTP endpoints
+├── components/control-panel/
+│   ├── dashboard-manager.tsx           # Shared status/jobs, layout
+│   ├── dashboard-header.tsx            # Header, notices and refresh
+│   ├── sidebar.tsx                     # Navigation
+│   ├── status-overview.tsx             # Status cards
+│   ├── activity-panel.tsx              # Scheduler run summaries
+│   ├── quick-actions.tsx               # Common UI actions
+│   ├── primitives.tsx                  # Reusable status/heading elements
+│   ├── connections/
+│   │   ├── connections-manager.tsx     # Codex and WhatsApp flow state
+│   │   ├── connections-panel.tsx       # Integration controls
+│   │   ├── codex-login-dialog.tsx
+│   │   ├── whatsapp-pairing-dialog.tsx
+│   │   └── whatsapp-qr-code.tsx        # Local QR rendering
+│   ├── scheduler/
+│   │   ├── scheduler-manager.tsx       # Job operations and forms
+│   │   ├── scheduler-list.tsx          # Job table
+│   │   └── job-dialog.tsx
+│   ├── workspace/
+│   │   ├── workspace-manager.tsx       # File actions and editor state
+│   │   ├── workspace-panel.tsx         # Files overview
+│   │   └── file-editor-dialog.tsx
+│   └── ui/dialog-shell.tsx             # Shared dialog shell
+├── lib/admin-services/                # Browser-to-Next.js API helpers
+├── server/
+│   ├── controllers/                    # Route-level delegation
+│   ├── services/                       # Feature operations
+│   ├── clients/hermes/                 # Authenticated Hermes requests
+│   ├── clients/manager/                # FastAPI Manager requests
+│   ├── config/env.ts                   # Server configuration
+│   └── errors/                         # Structured upstream error handling
+└── types/                              # TypeScript data contracts
+```
 
-## Important boundaries
+## Example: WhatsApp Connection
 
-- The frontend only calls its own `/api/v1/...` routes, not Docker ports or Hermes credentials.
-- Existing server routes/controllers/services/clients are unchanged by this frontend refactor.
-- Each feature's manager owns its local UI state; the small dashboard manager only owns shared status/job data, notice display, and Quick Actions.
-- Jobs created from the UI start **paused**. We do not trigger jobs without a button press.
-- WhatsApp QR rendering is not yet implemented in this branch; pairing data must not go to third-party QR services.
-- Scheduler activity is a summary, not a complete Hermes log viewer.
-- Test real behavior with `npx tsc --noEmit`, `npm run build`, and UI/API checks after updating the local code. A local type-check against shims is **not** a substitute for a full Next.js build.
+1. The user selects **Connect** or **Reconnect** in `connections-panel.tsx`.
+2. `connections-manager.tsx` manages UI state and calls `lib/admin-services/whatsapp-service.ts`.
+3. The browser calls the Next.js `/api/v1/whatsapp/connect` route, which delegates to the WhatsApp controller/service and `ManagerClient`.
+4. The FastAPI Manager starts onboarding or safely prepares reconnection using Hermes.
+5. The UI polls `/api/v1/whatsapp/poll/{pairingId}` for status and QR payload.
+6. `whatsapp-qr-code.tsx` displays that payload locally using `qrcode.react`; the QR payload does **not** need a third-party image-generation service.
+7. After scanning, the user applies pairing through `/api/v1/whatsapp/apply/{pairingId}`. The Manager verifies readiness and configures the self-chat destination.
+
+The browser does not directly use the Hermes session token. The Manager is responsible for validating Gateway and WhatsApp bridge shutdown before any reconnect session cleanup.
+
+## Example: Creating a Scheduled Job
+
+`scheduler-list.tsx` -> `scheduler-manager.tsx` -> `lib/admin-services/scheduler-service.ts` -> `/api/v1/scheduler/jobs` -> scheduler controller/service -> `HermesClient` -> Hermes Cron API.
+
+New jobs are sent with `paused: true`. Users can explicitly resume or trigger jobs later. The dashboard exposes create, edit, pause, resume, and trigger actions. The shared recent-activity panel displays last-run summaries rather than a full Hermes execution log.
+
+## Example: Workspace Editing
+
+`workspace-panel.tsx` -> `workspace-manager.tsx` -> `lib/admin-services/workspace-service.ts` -> `/api/v1/workspace/*` -> workspace controller/service -> `HermesClient` -> persistent Hermes workspace.
+
+The backend chooses fixed paths for `AGENTS.md`, `PROFILE.md`, and the CV PDF. CV uploads are validated for PDF MIME type, file size and PDF signature. `job_history.json` is agent-managed and not currently editable from the dashboard.
+
+## Important Boundaries and Limitations
+
+- Next.js runs on the host; Hermes, Manager and two TCP bridge containers run in Docker.
+- User-facing React code calls same-origin API routes. Protected upstream calls stay on the server.
+- `MANAGER_BASE_URL` is the environment key actually consumed by the backend. The tracked `app/.env.example` currently uses a stale `HERMES_MANAGER_URL` key, so use the correct key in `app/.env.local`.
+- The `qrcode.react` dependency is currently declared in the repository root `package.json`, not in `app/package.json`. Run root and app `npm install` steps as described in the README.
+- Agent start/stop/restart routes and the WhatsApp disconnect route are **placeholders**, not working controls.
+- `activity-panel.tsx` shows scheduler status summaries, not complete runtime logs.
+- The current application is a local development system; do not expose its management APIs publicly.
+
+## Verification
+
+From `app`:
+
+```powershell
+npx tsc --noEmit
+npm run build
+```
+
+Also test a live dashboard session against a running Docker Compose stack. A passing type check does not establish successful WhatsApp pairing or scheduled execution.
+
+For reconnect safety test commands, refer to the [FastAPI Manager README](../../../docker/hermes/manager/README.md#tests).
